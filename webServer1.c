@@ -1,5 +1,6 @@
 // webServer1.c
 // multi process ver.
+// For CGI
 
 #include <stdio.h>
 #include <stdlib.h>			// setenv(), getenv()
@@ -122,33 +123,13 @@ void* clntConnect( void* data )
 		str = strtok( str, "?" );
 		printf("filename : %s\n", str);
 
-		/*
-		char* name;	
-		char* value;
-		
-		while( str != NULL )
-		{
-			name = strtok( NULL, "=" );
-			// printf("%s\n", name);
-
-			value = strtok( NULL, "& ");
-			// printf("%s\n", value);
-
-			setenv( name, value, 0 );
-
-			name = NULL;
-			value = NULL;
-		}
-		*/
-
 		str = strtok( NULL, " " );
-		// printf("%s\n", str );
 
 		setenv( "QUERY_STRING", str, 0 );
-		
-		pthread_t pid = fork();
+	
+		pipe( fd );	
 
-		pipe( fd );
+		pthread_t pid = fork();
 
 		switch( pid )
 		{
@@ -159,19 +140,13 @@ void* clntConnect( void* data )
 			
 			case 0 :
 			{
-				// printf("child process\n");
 				close( 1 );
 				close( fd[ 0 ] );
 
-				// dup2( fd[ 0 ], 0 );
 				dup2( fd[ 1 ], 1 );	// 모든 출력이 fd[ 1 ] 에 write 된다.
-				dup2( fd[ 0 ], 0 );
 
-				printf("<title>hello</title>");
-
-				execlp( "sendToCGI.cgi", NULL );
-
-				// printf( "execlp FAIL !!!\n" );
+				execl( "sendToCGI.cgi", NULL );
+				error_handling( "execl FAIL!!!" );
 			}
 
 			default :
@@ -179,34 +154,21 @@ void* clntConnect( void* data )
 				close( 0 );
 				close( fd[ 1 ] );
 
-				// dup2( fd[ 0 ], 0 );
-			
-				// printf("parent process\n");	
-				
-				wait( &status );
-				// printf( "wait end!\n" );
-				
 				char protocol[] = "HTTP/1.1 200 OK\r\n\r\n";
 	
 				send( clnt_sock, protocol, strlen( protocol ), 0 );
 
-				read( fd[ 0 ], buf, BUFSIZE );
-
-				printf("%s\n", buf);
-	
-				send( clnt_sock, buf, strlen( buf ), 0 );
-				
-				/*	
-				int len;	
-				while ( ( len = read( fd[ 0 ], buf, BUFSIZE ) ) > 0 )
+				if( read( fd[ 0 ], buf, BUFSIZE ) != -1 )
 				{
 					send( clnt_sock, buf, strlen( buf ), 0 );
 				}
-				*/
+
+				else	// read 한 내용이 없으면
+				{
+					error_handling( "read error!!!" );
+				}
 
 				close( clnt_sock );
-				
-				// send()
 			}
 		}
 	}
@@ -218,62 +180,6 @@ void* clntConnect( void* data )
 
 		sendData( clnt_sock, ct, filename );
 	}
-
-
-
-/*
-	str_len = recv( clnt_sock, buf, BUFSIZE, 0 );
-	printf("%s\n", buf);
-
-	if( str_len == 0 )
-	{
-		error_handling("recv() error!!!");
-	}
-
- 	str = strtok( buf, "\r\n" );
-	
-	if( strstr( str, "HTTP" ) == NULL)
-	{
-		printf("HTTP ERROR!!!\n");
-		sendWrongMessage( clnt_sock );
-		close( clnt_sock );
-	}
-
-	str = strtok( str, " " );
-
-	if( strcmp( str, "GET" ) )
-	{
-		sendWrongMessage( clnt_sock );
-		close( clnt_sock );
-	}
-
-	str = strtok( NULL, " " );
-		
-	if( ( strstr( str, "html" ) != NULL ) || ( strstr( str, "HTML" ) ) )
-	{
-		strcpy( ct, "text/html" );
-	}
-
-	else
-	{
-		strcpy( ct, "text/plain" );
-	}
-
-	if( strrchr( str, '/' ) != NULL )
-	{
-		str = strtok( str, "/" );
-	}
-
-	if( strrchr( str, '?' ) != NULL ) 
-	{
-		str = strtok( str, "?" );	
-	}
-	
-	printf("filename : %s\n", str);
-	strcpy( filename, str );
-	
-	sendData( clnt_sock, ct, filename );
-*/
 
 	return 0;
 }
@@ -292,10 +198,9 @@ int main( int argc, char** argv )
 	struct sockaddr_in serv_addr;
 	struct sockaddr_in clnt_addr;
 	unsigned int clnt_addr_size;
-	pthread_t pid;
 	int thr_id;
 	int bf = sizeof( int );
-	// pid_t pid;
+	pid_t pid;
 
 	clnt_addr_size = sizeof( clnt_addr );
 
@@ -355,7 +260,6 @@ int main( int argc, char** argv )
 			default :
 			{
 				close( clnt_sock );
-				// printf("부모프로세스시다.\n");
 			}
 		}
 	}	// while( 1 )

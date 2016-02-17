@@ -8,7 +8,6 @@ int main( int argc, char** argv )
 	char* data;
 	long m, n;
 
-	printf( "%s%c%c\n", "Content-type:text/html; charset=iso-8859-1", 13, 10 );
 	printf("<title> result </title>\n");
 	printf("<h3>result</h3>\n");
 
