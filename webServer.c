@@ -36,7 +36,7 @@ void sendData( int data, char* ct, char* filename )
 		error_handling( "FILE is NULL\n" );	
 		exit( 1 );
 	}
-	
+
 	send( sock, protocol, strlen( protocol ), 0 );
 
 	while( len = fgets( buf, BUFSIZE, file ) != NULL )

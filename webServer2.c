@@ -1,7 +1,7 @@
-// webServer1.c
+// webServer2.c
 // multi process ver.
 // For CGI
-// Only GET
+// GET & POST
 
 #include <stdio.h>
 #include <stdlib.h>			// setenv(), getenv()
@@ -67,7 +67,9 @@ void* clntConnect( void* data )
 	int clnt_sock = *( (int*) data );
 	int str_len = 0;
 	char buf[ BUFSIZE ];
+	char buf_body[ BUFSIZE ];
 	char* str;
+	char* body;
 	char method[ SMALLBUF ];
 	char ct[ SMALLBUF ];
 	char filename[ SMALLBUF ];
@@ -75,6 +77,7 @@ void* clntConnect( void* data )
 	int fd[ 2 ];
 
 	str_len = recv( clnt_sock, buf, BUFSIZE, 0 );
+	strcpy( buf_body, buf );
 	printf("%s", buf);
 
 	if( str_len == 0 )
@@ -93,11 +96,14 @@ void* clntConnect( void* data )
 
 	str = strtok( str, " " );
 
+/*
+ 	// GET 방식일때만 수행
 	if( strcmp( str, "GET" ) )
 	{
 		sendWrongMessage( clnt_sock );
 		close( clnt_sock );
 	}
+*/
 
 	str = strtok( NULL, " " );
 
@@ -119,13 +125,28 @@ void* clntConnect( void* data )
 	if( strstr( str, ".cgi" ) != NULL ) 
 	{
 		int status;
-		char buf[ BUFSIZE ];
+		char strRead[ BUFSIZE ];
 		char cginame[ SMALLBUF ];
+	
+		// GET	
+		if( strrchr( str, '?' ) != NULL )
+		{
+			str = strtok( str, "?" );
+			strcpy( cginame, str );
+			str = strtok( NULL, " " );
+			setenv( "QUERY_STRING", str, 0 );
+		}
 
-		str = strtok( str, "?" );
-		strcpy( cginame, str );
-		str = strtok( NULL, " " );
-		setenv( "QUERY_STRING", str, 0 );
+		// POST
+		else
+		{
+			strcpy( cginame, str );
+			char* strBody;
+
+			strBody = strrchr( buf_body, '=' );
+			strBody += 1;
+			setenv( "QUERY_STRING", strBody, 0 );
+		}
 	
 		pipe( fd );	
 
@@ -158,9 +179,9 @@ void* clntConnect( void* data )
 	
 				send( clnt_sock, protocol, strlen( protocol ), 0 );
 
-				if( read( fd[ 0 ], buf, BUFSIZE ) != -1 )
+				if( read( fd[ 0 ], strRead, BUFSIZE ) != -1 )
 				{
-					send( clnt_sock, buf, strlen( buf ), 0 );
+					send( clnt_sock, strRead, strlen( strRead ), 0 );
 				}
 
 				else	// read 한 내용이 없으면
