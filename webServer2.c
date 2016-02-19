@@ -144,7 +144,6 @@ void* clntConnect( void* data )
 			char* strBody;
 
 			strBody = strrchr( buf_body, '=' );
-			strBody += 1;
 			setenv( "QUERY_STRING", strBody, 0 );
 		}
 	
